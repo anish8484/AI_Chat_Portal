@@ -1,0 +1,453 @@
+openapi: 3.0.3
+info:
+  title: AI Chat Portal API
+  description: |
+    Intelligent conversation system with AI-powered chat, conversation management, 
+    and advanced features including reactions, bookmarks, sharing, and export.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8001/api
+    description: Development server
+  - url: https://convoai-16.preview.emergentagent.com/api
+    description: Production server
+
+tags:
+  - name: Conversations
+    description: Conversation management operations
+  - name: Messages
+    description: Message operations including reactions and bookmarks
+  - name: Intelligence
+    description: AI-powered conversation analysis
+  - name: Sharing
+    description: Conversation sharing functionality
+  - name: Export
+    description: Export conversations in multiple formats
+
+paths:
+  /:
+    get:
+      summary: API health check
+      tags: [Conversations]
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: AI Chat Portal API
+
+  /conversations:
+    get:
+      summary: List all conversations
+      tags: [Conversations]
+      responses:
+        '200':
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+    
+    post:
+      summary: Create new conversation
+      tags: [Conversations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationCreate'
+      responses:
+        '200':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+  /conversations/{conversation_id}:
+    get:
+      summary: Get conversation with messages
+      tags: [Conversations]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation details with messages and suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationWithMessages'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/{conversation_id}/messages:
+    post:
+      summary: Send message and get AI response
+      tags: [Conversations]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '200':
+          description: AI response message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/{conversation_id}/end:
+    post:
+      summary: End conversation and generate summary
+      tags: [Conversations]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation ended with summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/query:
+    post:
+      summary: Query AI about past conversations
+      tags: [Intelligence]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: AI-generated insights
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+
+  /messages/{message_id}/react:
+    post:
+      summary: Add or remove reaction
+      tags: [Messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReactionRequest'
+      responses:
+        '200':
+          description: Reaction updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reactions:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /messages/{message_id}/bookmark:
+    post:
+      summary: Toggle bookmark status
+      tags: [Messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Bookmark toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  bookmarked:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/{conversation_id}/share:
+    post:
+      summary: Generate share link
+      tags: [Sharing]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Share link generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  share_token:
+                    type: string
+                    format: uuid
+                  share_url:
+                    type: string
+                    example: /shared/abc123-def456
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /shared/{share_token}:
+    get:
+      summary: View shared conversation
+      tags: [Sharing]
+      parameters:
+        - name: share_token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Shared conversation (read-only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationWithMessages'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/{conversation_id}/export:
+    post:
+      summary: Export conversation
+      tags: [Export]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Exported data
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: JSON export
+                  - type: object
+                    description: Markdown export
+                    properties:
+                      markdown:
+                        type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    ConversationId:
+      name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Conversation UUID
+    
+    MessageId:
+      name: message_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Message UUID
+
+  schemas:
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum: [active, ended]
+        summary:
+          type: string
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        share_token:
+          type: string
+          format: uuid
+          nullable: true
+
+    ConversationCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          example: My Conversation
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        reactions:
+          type: array
+          items:
+            type: string
+          example: ["👍", "❤️"]
+        bookmarked:
+          type: boolean
+
+    MessageCreate:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: What is machine learning?
+
+    ConversationWithMessages:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/Conversation'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        suggestions:
+          type: array
+          items:
+            type: string
+          example: ["Tell me more", "Can you explain?", "What's next?"]
+
+    QueryRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          example: What topics have I discussed most?
+
+    QueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        relevant_conversations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        suggestions:
+          type: array
+          items:
+            type: string
+
+    ReactionRequest:
+      type: object
+      required:
+        - reaction
+      properties:
+        reaction:
+          type: string
+          example: "👍"
+
+    ExportRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          type: string
+          enum: [json, markdown, pdf]
+          example: json
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: Conversation not found
+    
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: Invalid input or operation not allowed
